@@ -1,0 +1,49 @@
+name: Option Edge AI CI/CD Build & Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: option_edge_user
+          POSTGRES_PASSWORD: option_edge_secure_pass_9988
+          POSTGRES_DB: option_edge_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Python Compilation Suite
+      run: |
+        python -m py_compile App.py backend/main.py backend/quant_engine.py backend/models.py backend/database.py backend/data_fetcher.py
+
+    - name: Build Docker Container
+      run: |
+        docker build -t option-edge-ai:latest .
